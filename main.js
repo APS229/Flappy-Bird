@@ -1,41 +1,47 @@
 import * as THREE from 'three';
 
 const scene = new THREE.Scene();
+
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 100);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+const minYaw = -Math.PI / 4;
+const maxYaw = Math.PI / 4;
+const rotationSpeed = 0.002; // radians
+let yaw = 0;
+let pitch = 0;
+camera.rotation.order = 'YXZ';
+
 const pillarWidth = 5;
 const pillarHeight = 100;
 const pillarDepth = 5;
 
 const lastPositionZ = -100;
+
 const pillars = [];
 const totalPillars = 5;
 
 const colors = ['blue', 'yellow', 'red', 'green', 'pink'];
 
-const pillar1Geometry = new THREE.BoxGeometry(pillarWidth, pillarHeight, pillarDepth);
-const pillar2Geometry = new THREE.BoxGeometry(pillarWidth, pillarHeight, pillarDepth);
+const pillarGeometry = new THREE.BoxGeometry(pillarWidth, pillarHeight, pillarDepth);
 
 const playerGeometry = new THREE.BoxGeometry(3, 3, 3);
 let player = null;
-
-let keyPressed = false;
 
 class Pillar {
     constructor(id, positionZ) {
         this.id = id;
         this.material = new THREE.MeshPhongMaterial({ color: colors[id] });
-        this.top = new THREE.Mesh(pillar1Geometry, this.material);
-        this.bottom = new THREE.Mesh(pillar2Geometry, this.material);
+        this.top = new THREE.Mesh(pillarGeometry, this.material);
+        this.bottom = new THREE.Mesh(pillarGeometry, this.material);
         this.top.position.z = positionZ;
         this.bottom.position.z = positionZ;
         this.z = positionZ;
         this.setRandomGap();
-        this.canMove = true;
+        this.canMove = false;
     }
 
     move() {
@@ -44,10 +50,10 @@ class Pillar {
         this.z += 0.1;
     }
 
-    resetPosition() {
-        this.top.position.z = lastPositionZ;
-        this.bottom.position.z = lastPositionZ;
-        this.z = lastPositionZ;
+    resetPosition(z) {
+        this.top.position.z = z;
+        this.bottom.position.z = z;
+        this.z = z;
     }
 
     setRandomGap() {
@@ -62,14 +68,27 @@ class Player {
     constructor() {
         this.material = new THREE.MeshPhongMaterial({ color: 'orange' });
         this.mesh = new THREE.Mesh(playerGeometry, this.material);
+        this.canMove = false;
+    }
+
+    moveUp() {
+        if (this.mesh.position.y > 23) return;
+        camera.position.y += 0.1;
+        player.mesh.position.y += 0.1;
+    }
+
+    moveDown() {
+        if (this.mesh.position.y < -23) return;
+        camera.position.y -= 0.1;
+        player.mesh.position.y -= 0.1;
     }
 }
 
-document.addEventListener('keydown', onKeyDown);
-document.addEventListener('keyup', onKeyUp);
-
 init();
 function init() {
+    scene.background = new THREE.Color('grey');
+    scene.fog = new THREE.Fog('white', 30, 100);
+
     player = new Player();
     scene.add(player.mesh);
 
@@ -82,47 +101,67 @@ function init() {
         scene.add(pillar.bottom);
     }
 
-    const color = 0xFFFFFF;
-    const intensity = 3;
-    const light = new THREE.DirectionalLight(color, intensity);
-    light.position.set(0, 2, 1);
+    const light = new THREE.AmbientLight('white', 3);
     scene.add(light);
 }
 
 function animate() {
-    if (keyPressed) {
-        if (camera.position.y <= 23) {
-            camera.position.y += 0.1;
-            player.mesh.position.y += 0.1;
-        }
-    }
-    else {
-        if (camera.position.y >= -23) {
-            camera.position.y -= 0.1;
-            player.mesh.position.y -= 0.1;
-        }
+    if (player.canMove) {
+        if (keyPressed) player.moveUp();
+        else player.moveDown();
     }
 
     for (const pillar of pillars) {
         if (pillar.canMove) pillar.move();
+
+        // Collision detection
         if ((pillar.top.position.y - pillarHeight / 2 <= player.mesh.position.y + 3 / 2 || pillar.bottom.position.y + pillarHeight / 2 >= player.mesh.position.y - 3 / 2) &&
             pillar.z + pillarDepth / 2 >= player.mesh.position.z - 3 / 2) {
             console.log("collision with pillar");
         }
+
+        // Pillars leave the view of camera
         if (pillar.z >= 0) {
-            pillar.resetPosition();
+            pillar.resetPosition(lastPositionZ);
             pillar.setRandomGap();
         }
     }
     renderer.render(scene, camera);
 }
 
+let keyPressed = false;
 function onKeyDown(key) {
-    if (key.code === 'ArrowUp') keyPressed = true;
+    if (key.code === 'Space') keyPressed = true;
 }
 
 function onKeyUp(key) {
-    if (key.code === 'ArrowUp') keyPressed = false;
+    if (key.code === 'Space') keyPressed = false;
 }
+
+// Start the game with a click
+document.addEventListener('click', () => {
+    document.body.requestPointerLock();
+    player.canMove = true;
+    for (const pillar of pillars) {
+        pillar.canMove = true;
+    }
+});
+
+// Looking around in first person
+document.addEventListener('mousemove', event => {
+    if (!document.pointerLockElement) return;
+
+    yaw -= event.movementX * rotationSpeed;
+    pitch -= event.movementY * rotationSpeed;
+
+    yaw = THREE.MathUtils.clamp(yaw, minYaw, maxYaw);
+    pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2, Math.PI / 2);
+
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+});
+
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
 
 renderer.setAnimationLoop(animate);
