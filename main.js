@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const scene = new THREE.Scene();
 
@@ -9,6 +11,18 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+const loader = new GLTFLoader();
+
+const pillarModel = await loader.loadAsync('assets/pillar/pillar.glb');
+const pillarRingModel = await loader.loadAsync('assets/pillar/ring.glb');
+pillarModel.scene.scale.set(1.2, 5, 1.2);
+pillarRingModel.scene.scale.setScalar(1.2);
+
+const birdModel = await loader.loadAsync('assets/bird/bird.glb');
+birdModel.scene.rotation.y = -Math.PI / 2;
+birdModel.scene.scale.setScalar(0.65);
+birdModel.scene.position.z = -1;
 
 const minView = -Math.PI / 4;
 const maxView = Math.PI / 4;
@@ -22,32 +36,30 @@ const PILLAR_WIDTH = 5;
 const PILLAR_HEIGHT = 100;
 const PILLAR_DEPTH = 5;
 const PILLAR_SPEED = 0.2;
-const PILLAR_GAP_SIZE = 110;
-const PILLAR_GAP_POSITION = 24;
+const PILLAR_GAP_SIZE = 116;
+const PILLAR_GAP_POSITION = 28;
 const pillarGeometry = new THREE.BoxGeometry(PILLAR_WIDTH, PILLAR_HEIGHT, PILLAR_DEPTH);
-
 
 const pillars = [];
 const totalPillars = 8;
 const lastPositionZ = -(totalPillars * 20);
 
-const PLAYER_DIMENSIONS = 3;
-const PLAYER_SPEED = 0.2;
-const playerGeometry = new THREE.BoxGeometry(PLAYER_DIMENSIONS, PLAYER_DIMENSIONS, PLAYER_DIMENSIONS);
+const PLAYER_DIMENSIONS = { width: 2.1, height: 2.1, depth: 3.5 };
+const PLAYER_SPEED = 0.3;
+const playerGeometry = new THREE.BoxGeometry(PLAYER_DIMENSIONS.width, PLAYER_DIMENSIONS.height, PLAYER_DIMENSIONS.depth);
 
 let player = null;
 
 class Pillar {
-    constructor(id, positionZ) {
+    constructor(id) {
         this.id = id;
-        this.material = new THREE.MeshPhongMaterial({ color: 'green' });
+        this.material = new THREE.MeshStandardMaterial({ visible: false });
         this.top = new THREE.Mesh(pillarGeometry, this.material);
         this.bottom = new THREE.Mesh(pillarGeometry, this.material);
-        this.top.position.z = positionZ;
-        this.bottom.position.z = positionZ;
-        this.z = positionZ;
         this.canMove = false;
-        this.setRandomGapPosition();
+        this.resetPosition(-(id * 20 + 20));
+        this.setRandomGapPosition(PILLAR_GAP_POSITION / 2);
+        this.setPillarTextures();
     }
 
     move() {
@@ -62,17 +74,34 @@ class Pillar {
         this.z = z;
     }
 
-    setRandomGapPosition() {
-        this.randomGapPosition = parseInt((Math.random() * PILLAR_GAP_POSITION) + 1);
-        this.top.position.y = (PILLAR_GAP_SIZE / 2) + this.randomGapPosition / 2;
-        this.bottom.position.y = -(PILLAR_GAP_SIZE / 2) + this.randomGapPosition / 2;
+    setRandomGapPosition(gap) {
+        this.randomGapPosition = gap || parseInt((Math.random() * PILLAR_GAP_POSITION) + 1);
+        this.top.position.y = (PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
+        this.bottom.position.y = -(PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
+    }
+
+    setPillarTextures() {
+        const topPillarPart = clone(pillarModel.scene);
+        const topPillarRing = clone(pillarRingModel.scene);
+        topPillarPart.position.y = -49;
+        topPillarRing.position.y = -62;
+        this.top.add(topPillarPart);
+        this.top.add(topPillarRing);
+
+        const bottomPillarPart = clone(pillarModel.scene);
+        const bottomPillarRing = clone(pillarRingModel.scene);
+        bottomPillarPart.position.y = -1;
+        bottomPillarRing.position.y = 35.3;
+        this.bottom.add(bottomPillarPart);
+        this.bottom.add(bottomPillarRing);
     }
 }
 
 class Player {
     constructor() {
-        this.material = new THREE.MeshPhongMaterial({ color: 'yellow' });
+        this.material = new THREE.MeshStandardMaterial({ visible: false });
         this.mesh = new THREE.Mesh(playerGeometry, this.material);
+        this.mesh.add(birdModel.scene);
         this.canMove = false;
     }
 
@@ -92,12 +121,17 @@ class Player {
 init();
 function init() {
     scene.background = new THREE.Color('grey');
+    // Required to see metallic textures
+    const environment = new RoomEnvironment();
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(environment).texture;
+    scene.environmentIntensity = 0.6;
 
     player = new Player();
     scene.add(player.mesh);
 
     for (let i = 0; i < totalPillars; i++) {
-        pillars[i] = new Pillar(i, -(i * 20 + 20));
+        pillars[i] = new Pillar(i);
     }
 
     for (const pillar of pillars) {
@@ -105,16 +139,20 @@ function init() {
         scene.add(pillar.bottom);
     }
 
-    const dLight = new THREE.DirectionalLight('white', 1);
-    const aLight = new THREE.AmbientLight('white', 2);
-    scene.add(dLight);
-    scene.add(aLight);
+    // Surface
+    const surfaceGeometry = new THREE.BoxGeometry(500, 1, 500);
+    const surfaceMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
+    const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+    surface.position.y = -50;
+    scene.add(surface);
 
     // Camera perspective from front of the bird
-    camera.position.z = -PLAYER_DIMENSIONS / 2;
+    camera.position.set(0, 1, -2.8);
 }
 
 function animate() {
+    renderer.render(scene, camera);
+    if (!started) return;
     if (player.canMove) {
         if (keyPressed) player.moveUp();
         else player.moveDown();
@@ -124,12 +162,13 @@ function animate() {
         if (pillar.canMove) pillar.move();
 
         // Collision detection
-        if ((pillar.top.position.y - PILLAR_HEIGHT / 2 <= player.mesh.position.y + PLAYER_DIMENSIONS / 2 ||
-            pillar.bottom.position.y + PILLAR_HEIGHT / 2 >= player.mesh.position.y - PLAYER_DIMENSIONS / 2) &&
-            pillar.z + PILLAR_DEPTH / 2 >= player.mesh.position.z - PLAYER_DIMENSIONS / 2 &&
-            pillar.z - PILLAR_DEPTH / 2 <= player.mesh.position.z + PLAYER_DIMENSIONS / 2) {
+        if ((pillar.top.position.y - PILLAR_HEIGHT / 2 <= player.mesh.position.y + PLAYER_DIMENSIONS.height / 2 ||
+            pillar.bottom.position.y + PILLAR_HEIGHT / 2 >= player.mesh.position.y - PLAYER_DIMENSIONS.height / 2) &&
+            pillar.z + PILLAR_DEPTH / 2 >= player.mesh.position.z - PLAYER_DIMENSIONS.depth / 2 &&
+            pillar.z - PILLAR_DEPTH / 2 <= player.mesh.position.z + PLAYER_DIMENSIONS.depth / 2) {
             console.log('dead');
-            player.material.color.setColorName('red');
+            stopGame();
+            break;
         }
 
         // Pillar goes behind the bird
@@ -138,7 +177,6 @@ function animate() {
             pillar.setRandomGapPosition();
         }
     }
-    renderer.render(scene, camera);
 }
 
 let keyPressed = false;
@@ -157,12 +195,27 @@ function onKeyUp(key) {
 }
 
 // Start the game with a click
+let started = false;
 function onClick() {
+    if (started) return;
     document.body.requestPointerLock();
     player.canMove = true;
-    for (const pillar of pillars) {
-        pillar.canMove = true;
+    for (let i = 0; i < totalPillars; i++) {
+        pillars[i].resetPosition(-(i * 20 + 20));
+        pillars[i].setRandomGapPosition(!i ? PILLAR_GAP_POSITION / 2 : false);
+        pillars[i].canMove = true;
     }
+    started = true;
+}
+
+function stopGame() {
+    if (!started) return;
+    document.exitPointerLock();
+    player.canMove = false;
+    for (const pillar of pillars) {
+        pillar.canMove = false;
+    }
+    started = false;
 }
 
 // Looking around in first person
