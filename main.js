@@ -105,6 +105,11 @@ class Player {
         this.canMove = false;
     }
 
+    resetPosition() {
+        camera.position.y = 1;
+        player.mesh.position.y = 0;
+    }
+
     moveUp() {
         if (this.mesh.position.y > 23) return;
         if (!twoDimensional) camera.position.y += PLAYER_SPEED;
@@ -200,6 +205,7 @@ function onClick() {
     if (started) return;
     document.body.requestPointerLock();
     player.canMove = true;
+    player.resetPosition();
     for (let i = 0; i < totalPillars; i++) {
         pillars[i].resetPosition(-(i * 20 + 20));
         pillars[i].setRandomGapPosition(!i ? PILLAR_GAP_POSITION / 2 : false);
