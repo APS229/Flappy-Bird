@@ -29,19 +29,16 @@ const maxView = Math.PI / 4;
 const viewSpeed = 0.002; // radians
 let yaw = 0;
 let pitch = 0;
-let twoDimensional = false;
 camera.rotation.order = 'YXZ';
 
-const PILLAR_WIDTH = 5;
-const PILLAR_HEIGHT = 100;
-const PILLAR_DEPTH = 5;
+const PILLAR_DIMENSIONS = { width: 5, height: 100, depth: 5 };
 const PILLAR_SPEED = 0.2;
 const PILLAR_GAP_SIZE = 116;
 const PILLAR_GAP_POSITION = 28;
-const pillarGeometry = new THREE.BoxGeometry(PILLAR_WIDTH, PILLAR_HEIGHT, PILLAR_DEPTH);
+const pillarGeometry = new THREE.BoxGeometry(PILLAR_DIMENSIONS.width, PILLAR_DIMENSIONS.height, PILLAR_DIMENSIONS.depth);
 
 const pillars = [];
-const totalPillars = 8;
+const totalPillars = 10;
 const lastPositionZ = -(totalPillars * 20);
 
 const PLAYER_DIMENSIONS = { width: 2.1, height: 2.1, depth: 3.5 };
@@ -49,6 +46,9 @@ const PLAYER_SPEED = 0.3;
 const playerGeometry = new THREE.BoxGeometry(PLAYER_DIMENSIONS.width, PLAYER_DIMENSIONS.height, PLAYER_DIMENSIONS.depth);
 
 let player = null;
+
+let twoDimensional = false;
+let started = false;
 
 class Pillar {
     constructor(id) {
@@ -74,8 +74,8 @@ class Pillar {
         this.z = z;
     }
 
-    setRandomGapPosition(gap) {
-        this.randomGapPosition = gap || parseInt((Math.random() * PILLAR_GAP_POSITION) + 1);
+    setRandomGapPosition(position) {
+        this.randomGapPosition = position || parseInt((Math.random() * PILLAR_GAP_POSITION) + 1);
         this.top.position.y = (PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
         this.bottom.position.y = -(PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
     }
@@ -125,13 +125,13 @@ class Player {
 
 init();
 function init() {
-    scene.background = new THREE.Color('grey');
     // Required to see metallic textures
     const environment = new RoomEnvironment();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(environment).texture;
     scene.environmentIntensity = 0.6;
-
+    scene.background = new THREE.Color('lightblue');
+    
     player = new Player();
     scene.add(player.mesh);
 
@@ -167,16 +167,15 @@ function animate() {
         if (pillar.canMove) pillar.move();
 
         // Collision detection
-        if ((pillar.top.position.y - PILLAR_HEIGHT / 2 <= player.mesh.position.y + PLAYER_DIMENSIONS.height / 2 ||
-            pillar.bottom.position.y + PILLAR_HEIGHT / 2 >= player.mesh.position.y - PLAYER_DIMENSIONS.height / 2) &&
-            pillar.z + PILLAR_DEPTH / 2 >= player.mesh.position.z - PLAYER_DIMENSIONS.depth / 2 &&
-            pillar.z - PILLAR_DEPTH / 2 <= player.mesh.position.z + PLAYER_DIMENSIONS.depth / 2) {
-            console.log('dead');
+        if ((pillar.top.position.y - PILLAR_DIMENSIONS.height / 2 <= player.mesh.position.y + PLAYER_DIMENSIONS.height / 2 ||
+            pillar.bottom.position.y + PILLAR_DIMENSIONS.height / 2 >= player.mesh.position.y - PLAYER_DIMENSIONS.height / 2) &&
+            pillar.z + PILLAR_DIMENSIONS.depth / 2 >= player.mesh.position.z - PLAYER_DIMENSIONS.depth / 2 &&
+            pillar.z - PILLAR_DIMENSIONS.depth / 2 <= player.mesh.position.z + PLAYER_DIMENSIONS.depth / 2) {
             stopGame();
             break;
         }
 
-        // Pillar goes behind the bird
+        // Pillar leaves the 2D camera
         if (pillar.z >= 60) {
             pillar.resetPosition(lastPositionZ + 60);
             pillar.setRandomGapPosition();
@@ -187,11 +186,17 @@ function animate() {
 let keyPressed = false;
 function onKeyDown(key) {
     if (key.code === 'Space') keyPressed = true;
-    // Change camera perspective to 2D
+    // Change camera perspective
     else if (key.code === 'KeyP') {
-        twoDimensional = true;
-        camera.rotation.set(0, Math.PI / 2, 0);
-        camera.position.set(40, 0, -20);
+        if (twoDimensional) {
+            camera.rotation.y = 0;
+            camera.position.set(0, player.mesh.position.y + 1, -2.8);
+        }
+        else {
+            camera.rotation.set(0, Math.PI / 2, 0);
+            camera.position.set(40, 0, -20);
+        }
+        twoDimensional = !twoDimensional;
     }
 }
 
@@ -200,7 +205,6 @@ function onKeyUp(key) {
 }
 
 // Start the game with a click
-let started = false;
 function onClick() {
     if (started) return;
     document.body.requestPointerLock();
@@ -238,9 +242,19 @@ function onMouseMove(event) {
     camera.rotation.x = pitch;
 }
 
+function onWindowResize() {
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+    renderer.setSize(newWidth, newHeight);
+
+    camera.aspect = newWidth / newHeight;
+    camera.updateProjectionMatrix();
+}
+
 document.addEventListener('click', onClick);
 document.addEventListener('mousemove', onMouseMove);
 document.addEventListener('keydown', onKeyDown);
 document.addEventListener('keyup', onKeyUp);
+window.addEventListener('resize', onWindowResize);
 
 renderer.setAnimationLoop(animate);
