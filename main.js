@@ -75,7 +75,8 @@ class Pillar {
     }
 
     setRandomGapPosition(position) {
-        this.randomGapPosition = position || parseInt((Math.random() * PILLAR_GAP_POSITION) + 1);
+        // Random even whole number between 0 and given gap position
+        this.randomGapPosition = position || Math.floor(Math.random() * (PILLAR_GAP_POSITION / 2 + 1)) * 2;
         this.top.position.y = (PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
         this.bottom.position.y = -(PILLAR_GAP_SIZE / 2) + PILLAR_GAP_POSITION / 2 - this.randomGapPosition;
     }
@@ -144,12 +145,17 @@ function init() {
         scene.add(pillar.bottom);
     }
 
-    // Surface
+    // Top and bottom surface
     const surfaceGeometry = new THREE.BoxGeometry(500, 1, 500);
     const surfaceMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
-    const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
-    surface.position.y = -50;
-    scene.add(surface);
+
+    const surfaceTop = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+    surfaceTop.position.y = 60;
+    scene.add(surfaceTop);
+
+    const surfaceBottom = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+    surfaceBottom.position.y = -60;
+    scene.add(surfaceBottom);
 
     // Camera perspective from front of the bird
     camera.position.set(0, 1, -2.8);
