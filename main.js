@@ -132,7 +132,7 @@ function init() {
     scene.environment = pmremGenerator.fromScene(environment).texture;
     scene.environmentIntensity = 0.6;
     scene.background = new THREE.Color('lightblue');
-    
+
     player = new Player();
     scene.add(player.mesh);
 
@@ -150,11 +150,11 @@ function init() {
     const surfaceMaterial = new THREE.MeshStandardMaterial({ color: 'green' });
 
     const surfaceTop = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
-    surfaceTop.position.y = 60;
+    surfaceTop.position.y = 40;
     scene.add(surfaceTop);
 
     const surfaceBottom = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
-    surfaceBottom.position.y = -60;
+    surfaceBottom.position.y = -40;
     scene.add(surfaceBottom);
 
     // Camera perspective from front of the bird
@@ -191,7 +191,10 @@ function animate() {
 
 let keyPressed = false;
 function onKeyDown(key) {
-    if (key.code === 'Space') keyPressed = true;
+    if (key.code === 'Space') {
+        keyPressed = true;
+        document.getElementById('fly_button').style.background = 'rgba(252, 255, 92, 0.7)';
+    }
     // Change camera perspective
     else if (key.code === 'KeyP') {
         if (twoDimensional) {
@@ -200,27 +203,78 @@ function onKeyDown(key) {
         }
         else {
             camera.rotation.set(0, Math.PI / 2, 0);
-            camera.position.set(40, 0, -20);
+            if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
+                camera.position.set(50, 0, -10);
+            }
+            else {
+                camera.position.set(40, 0, -20);
+            }
         }
         twoDimensional = !twoDimensional;
+        document.getElementById('perspective_button').style.background = 'rgba(151, 255, 103, 0.7)';
     }
 }
 
 function onKeyUp(key) {
-    if (key.code === 'Space') keyPressed = false;
+    if (key.code === 'Space') {
+        keyPressed = false;
+        document.getElementById('fly_button').style.background = 'rgba(252, 255, 92, 0.5)';
+    }
+    else if (key.code === 'KeyP') {
+        document.getElementById('perspective_button').style.background = 'rgba(151, 255, 103, 0.5)';
+    }
+}
+
+// Touch screen support
+function onTouchStartPerspective(event) {
+    event.preventDefault();
+    if (twoDimensional) {
+        camera.rotation.y = 0;
+        camera.position.set(0, player.mesh.position.y + 1, -2.8);
+    }
+    else {
+        camera.rotation.set(0, Math.PI / 2, 0);
+        if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
+            camera.position.set(50, 0, -10);
+        }
+        else {
+            camera.position.set(40, 0, -20);
+        }
+    }
+    twoDimensional = !twoDimensional;
+    document.getElementById('perspective_button').style.background = 'rgba(151, 255, 103, 0.7)';
+}
+
+function onTouchEndPerspective() {
+    document.getElementById('perspective_button').style.background = 'rgba(151, 255, 103, 0.5)';
+}
+
+function onTouchStartFly(event) {
+    event.preventDefault();
+    keyPressed = true;
+    document.getElementById('fly_button').style.background = 'rgba(252, 255, 92, 0.7)';
+}
+
+function onTouchEndFly() {
+    keyPressed = false;
+    document.getElementById('fly_button').style.background = 'rgba(252, 255, 92, 0.5)';
 }
 
 // Start the game with a click
-function onClick() {
+function startGame() {
     if (started) return;
     document.body.requestPointerLock();
     player.canMove = true;
     player.resetPosition();
+    yaw = 0, pitch = 0;
+    if (!twoDimensional) camera.rotation.set(0, 0, 0);
     for (let i = 0; i < totalPillars; i++) {
         pillars[i].resetPosition(-(i * 20 + 20));
         pillars[i].setRandomGapPosition(!i ? PILLAR_GAP_POSITION / 2 : false);
         pillars[i].canMove = true;
     }
+    document.getElementById('death_text').style.display = 'none';
+    document.getElementById('instructions').style.display = 'none';
     started = true;
 }
 
@@ -231,6 +285,8 @@ function stopGame() {
     for (const pillar of pillars) {
         pillar.canMove = false;
     }
+    document.getElementById('death_text').style.display = 'block';
+    document.getElementById('instructions').style.display = 'block';
     started = false;
 }
 
@@ -257,10 +313,17 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 }
 
-document.addEventListener('click', onClick);
+document.addEventListener('click', startGame);
 document.addEventListener('mousemove', onMouseMove);
 document.addEventListener('keydown', onKeyDown);
 document.addEventListener('keyup', onKeyUp);
+
+document.getElementById('fly_button').addEventListener('touchstart', onTouchStartFly, { passive: false });
+document.getElementById('fly_button').addEventListener('touchend', onTouchEndFly);
+document.getElementById('perspective_button').addEventListener('touchstart', onTouchStartPerspective, { passive: false });
+document.getElementById('perspective_button').addEventListener('touchend', onTouchEndPerspective);
+
 window.addEventListener('resize', onWindowResize);
+window.addEventListener('orientationchange', onWindowResize);
 
 renderer.setAnimationLoop(animate);

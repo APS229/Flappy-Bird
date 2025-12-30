@@ -1,0 +1,151 @@
+body {
+    margin: 0;
+}
+
+div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 30%;
+    width: 300px;
+    height: 150px;
+    border-radius: 20px;
+    position: fixed;
+    touch-action: none;
+    flex-direction: column;
+}
+
+div:hover {
+    cursor: pointer;
+}
+
+div a:first-child {
+    font-size: 50px;
+    font-weight: bold;
+}
+
+div a:last-child {
+    font-size: 20px;
+}
+
+#perspective_button {
+    left: 20%;
+    transform: translateX(-20%);
+    background: rgba(151, 255, 103, 0.5);
+}
+
+#perspective_button:hover {
+    background: rgba(151, 255, 103, 0.7);
+}
+
+#perspective_button a:first-child {
+    color: rgb(110, 255, 43);
+    text-shadow: 1px 1px rgb(83, 196, 31);
+}
+
+#fly_button {
+    left: 80%;
+    transform: translateX(-80%);
+    background: rgba(252, 255, 92, 0.5);
+}
+
+#fly_button:hover {
+    background: rgba(252, 255, 92, 0.7);
+}
+
+#fly_button a:first-child {
+    color: rgb(255, 255, 61);
+    text-shadow: 1px 1px rgb(219, 219, 0);
+}
+
+#instructions {
+    top: 50%;
+    width: 100%;
+    font-size: 30px;
+    text-align: center;
+    position: fixed;
+}
+
+#death_text {
+    display: none;
+    top: 28%;
+    width: 100%;
+    text-align: center;
+    color: red;
+    font-size: 120px;
+    font-weight: bold;
+    text-shadow: 3px 3px darkred;
+    position: fixed;
+}
+
+canvas {
+    z-index: -1;
+}
+
+/* Portrait */
+@media (max-width: 1024px) and (orientation: portrait) {
+
+    #fly_button,
+    #perspective_button {
+        width: 150px;
+        height: 100px;
+        top: 60%;
+    }
+
+    #fly_button a:first-child,
+    #perspective_button a:first-child {
+        font-size: 20px;
+    }
+
+    #fly_button a:last-child,
+    #perspective_button a:last-child {
+        display: none;
+    }
+
+    #fly_button {
+        left: 85%;
+        transform: translateX(-85%);
+    }
+
+    #perspective_button {
+        left: 20%;
+        transform: translateX(-20%);
+    }
+
+    #instructions {
+        font-size: 15px;
+    }
+
+    #death_text {
+        font-size: 60px;
+    }
+}
+
+/* Landscape */
+@media (max-width: 1024px) and (orientation: landscape) {
+
+    #fly_button,
+    #perspective_button {
+        width: 130px;
+        height: 65px;
+        top: 50%;
+    }
+
+    #fly_button a:first-child,
+    #perspective_button a:first-child {
+        font-size: 15px;
+    }
+
+    #fly_button a:last-child,
+    #perspective_button a:last-child {
+        display: none;
+    }
+
+    #death_text {
+        font-size: 40px;
+    }
+
+    #instructions {
+        font-size: 10px;
+    }
+}
